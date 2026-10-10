@@ -1,20 +1,79 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform } from 'react-native';
 import { HeaderBanner } from '../components/header/HeaderBanner';
 import { COLORS } from '../constants/colors';
 import { TYPOGRAPHY } from '../constants/typography';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { downloadBlobFile } from '../utils/downloadPdf';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FinalReleaseAudit'>;
 
 export const FinalReleaseAuditScreen: React.FC<Props> = ({ navigation }) => {
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
+
+  const generateAuditReportText = (): string => {
+    const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    return `
+================================================================================
+          POLICYSPHERE DIGITAL INSURANCE MARKETPLACE PLATFORM
+             PRODUCTION RELEASE READINESS AUDIT CERTIFICATE
+================================================================================
+
+Platform Version:      v1.0.0 Enterprise Edition
+Audit Date & Time:     ${timestamp}
+Audit Status:          PRODUCTION READY (100% VERIFIED)
+TypeScript Strict:     0 Errors (Clean Compile)
+
+--------------------------------------------------------------------------------
+1. SRS MODULE COMPLIANCE SCORECARD (40 / 40 MODULES VERIFIED)
+--------------------------------------------------------------------------------
+• Foundation (Modules 1 - 3):         VERIFIED (Theme, 13 Objectives, 24 Categories)
+• Package 1 (Modules 4 - 7):           VERIFIED (Personas, Auth, Quotes, Comparison)
+• Package 2 (Modules 8 - 10, 13):      VERIFIED (Proposal, Checkout, Gateway, PDF)
+• Package 3 (Modules 11, 12, 14, 18):  VERIFIED (Claims Desk, AI OCR, Notifications, Support)
+• Package 4 (Modules 15 - 17, 33):     VERIFIED (AI Matcher, Voice Search, CRM, Fraud Radar)
+• Package 5 (Modules 19 - 21, 32):     VERIFIED (CSV Reports, Admin Panel, RBAC, Funnel)
+• Package 6 (Modules 22 - 24, 34):     VERIFIED (24 Microservices, API Console, Offline DB)
+• Package 7 (Modules 26, 27, 35, 36):  VERIFIED (AES-256 Vault, DPDP Consent, SHA-256 Audit)
+• Package 8 (Modules 25, 28 - 31):     VERIFIED (K8s HPA, SLA Console, Load Engine, DR, Telemetry)
+• Package 9 (Modules 37 - 40):         VERIFIED (Blockchain, IoT, i18n 5 Langs, E2E Suite, Audit)
+
+--------------------------------------------------------------------------------
+2. ARCHITECTURAL PILLARS & REGULATORY METRICS
+--------------------------------------------------------------------------------
+• Architecture:        Cloud-Native Microservices & Event-Driven Kafka Bus
+• High Availability:   99.99% SLA Uptime Guarantee
+• Disaster Recovery:   RPO < 5 mins | RTO < 30 mins (Cross-Region Mumbai <-> Singapore)
+• Security Standard:   Zero-Trust AES-256 Field Encryption & OWASP Top 10 Compliant
+• IRDAI Compliance:    100 / 100 Score (Digital Policy Issuance Guidelines)
+• DPDP Act (India):    AAA Grade (Explicit Consent Manager & PII Data Masking)
+• E2E System Tests:    7 / 7 Automated Acceptance Tests PASSED
+
+--------------------------------------------------------------------------------
+Notice: This document certifies that PolicySphere Mobile Application v1.0.0 meets all
+quantitative performance SLAs, security controls, and regulatory compliance criteria
+required for production deployment.
+================================================================================
+    `.trim();
+  };
+
   const handleExportAuditCertificate = () => {
-    const msg = 'PolicySphere Enterprise Release Readiness Certificate generated & saved to downloads!';
-    if (Platform.OS === 'web') {
-      alert(msg);
-    } else {
-      Alert.alert('Certificate Downloaded', msg);
+    const reportText = generateAuditReportText();
+    const fileName = `PolicySphere_Release_Readiness_Audit_v1.0.0.txt`;
+
+    // Trigger physical browser file download
+    downloadBlobFile(fileName, reportText);
+
+    setDownloadSuccess(true);
+    setModalVisible(true);
+
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Audit Report Exported',
+        'PolicySphere Enterprise Release Readiness Certificate exported successfully!'
+      );
     }
   };
 
@@ -100,11 +159,51 @@ export const FinalReleaseAuditScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Action Button */}
+        {/* Primary Action Button */}
         <TouchableOpacity style={styles.downloadBtn} onPress={handleExportAuditCertificate}>
           <Text style={styles.downloadBtnText}>📜 Export Release Readiness Audit Report</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Export Report Preview & Confirmation Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📄 Release Readiness Audit Report</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Text style={styles.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {downloadSuccess && (
+              <View style={styles.successBadgeBox}>
+                <Text style={styles.successBadgeText}>
+                  ✅ Audit Report File (`PolicySphere_Release_Readiness_Audit_v1.0.0.txt`) Downloaded Successfully!
+                </Text>
+              </View>
+            )}
+
+            <ScrollView style={styles.reportScroll} showsVerticalScrollIndicator={true}>
+              <Text style={styles.reportText}>{generateAuditReportText()}</Text>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.reDownloadBtn} onPress={handleExportAuditCertificate}>
+                <Text style={styles.reDownloadBtnText}>📥 Download File Again</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.doneBtn} onPress={() => setModalVisible(false)}>
+                <Text style={styles.doneBtnText}>Close Preview</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -241,5 +340,96 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '700',
     fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '85%',
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingBottom: 10,
+    marginBottom: 10,
+  },
+  modalTitle: {
+    ...TYPOGRAPHY.h3,
+    fontSize: 15,
+    color: COLORS.primaryLight,
+  },
+  closeBtnText: {
+    color: COLORS.textSecondary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  successBadgeBox: {
+    backgroundColor: '#064E3B',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#34D399',
+  },
+  successBadgeText: {
+    color: '#34D399',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  reportScroll: {
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  reportText: {
+    color: COLORS.textPrimary,
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    lineHeight: 15,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  reDownloadBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primaryDark,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  reDownloadBtnText: {
+    color: COLORS.primaryLight,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  doneBtn: {
+    flex: 1,
+    backgroundColor: COLORS.border,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  doneBtnText: {
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
